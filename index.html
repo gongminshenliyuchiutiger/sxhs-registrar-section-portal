@@ -4,259 +4,189 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>新北市立雙溪高級中學註冊組入口網站</title>
+    <!-- 引入 Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
     <!-- 引入 Font Awesome 圖示庫 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
-        /* --- 整體頁面樣式 --- */
-        body {
-            font-family: 'Helvetica Neue', '微軟正黑體', 'Microsoft JhengHei', sans-serif;
-            background-color: #f0f2f5;
-            margin: 0;
-            padding: 40px 20px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            color: #333;
-            box-sizing: border-box;
-            overflow-x: hidden;
+        /* --- [V6 優化] CSS 變數定義 (與 V5 相同) --- */
+        :root {
+            --primary-color: #0ea5e9;    /* 天空藍 */
+            --secondary-color: #d946ef;  /* 亮洋紅 */
+            --danger-color: #f43f5e;
+            --text-color: #e2e8f0;
+            --text-secondary-color: #94a3b8;
+            --bg-color: #030712;
+            --container-bg: rgba(15, 23, 42, 0.5);
+            --border-color: rgba(14, 165, 233, 0.2);
+            --hover-bg: rgba(30, 41, 59, 0.7);
+            --glow-color: rgba(14, 165, 233, 0.15);
         }
 
-        /* --- 動態背景容器 --- */
+        /* --- 整體頁面 --- */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', '微軟正黑體', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0; padding: 60px 20px;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            min-height: 100vh;
+            color: var(--text-color);
+            box-sizing: border-box;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* --- [V6 整合] 多層次背景 --- */
+        /* 1. 互動式粒子背景 Canvas (最底層) */
+        #particle-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: -2; /* 調整 z-index 以容納漂浮吉祥物 */
+        }
+        
+        /* 2. 背景漂浮吉祥物 (中間層) */
         #background-animations {
             position: fixed; top: 0; left: 0;
             width: 100%; height: 100%;
-            z-index: -1; overflow: hidden;
-            pointer-events: none;
+            z-index: -1; /* 在粒子之上，但在主容器之下 */
+            overflow: hidden; pointer-events: none;
         }
-
         .floating-mascot {
             position: absolute; width: 150px; height: auto;
             will-change: transform;
+            opacity: 0.04 !important; /* 保持非常低的透明度 */
         }
-        
         @keyframes float {
-            0% { transform: translate(0, 0) rotate(-2deg); }
-            25% { transform: translate(10px, -15px) rotate(0deg); }
-            50% { transform: translate(5px, 10px) rotate(2deg); }
-            75% { transform: translate(-10px, -5px) rotate(0deg); }
-            100% { transform: translate(0, 0) rotate(-2deg); }
+            0%{transform:translate(0,0) rotate(-2deg)}25%{transform:translate(10px,-15px) rotate(0deg)}50%{transform:translate(5px,10px) rotate(2deg)}75%{transform:translate(-10px,-5px) rotate(0deg)}100%{transform:translate(0,0) rotate(-2deg)}
         }
-
-        /* --- 主要容器樣式 --- */
+        
+        /* --- 流線型容器與動態光環 (與 V5 相同) --- */
         .container {
-            background-color: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(5px);
+            background: var(--container-bg);
+            backdrop-filter: blur(16px);
             padding: 30px 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            max-width: 800px;
-            width: 100%;
+            border-radius: 20px;
+            max-width: 800px; width: 100%;
             box-sizing: border-box;
-            flex-shrink: 0;
-            z-index: 1;
+            z-index: 1; /* 主內容層 */
+            position: relative;
+            opacity: 0; transform: translateY(20px);
+            animation: fadeInUp 0.6s 0.5s forwards cubic-bezier(0.2, 0.8, 0.2, 1);
         }
+        @keyframes fadeInUp{to{opacity:1;transform:translateY(0)}}
 
-        /* --- 標題樣式 --- */
-        h1 {
-            color: #003366; text-align: center;
-            margin-top: 0; margin-bottom: 10px; font-size: 2em;
+        .container::before {
+            content: '';
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            border-radius: 20px;
+            padding: 2px;
+            background: conic-gradient(from var(--angle), transparent 20%, var(--primary-color), var(--secondary-color), transparent 80%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            animation: rotate-border 5s linear infinite;
         }
+        @property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+        @keyframes rotate-border { to { --angle: 360deg; } }
+        .container > * { position: relative; z-index: 1; }
         
-        .subtitle {
-            text-align: center; color: #666;
-            margin-bottom: 30px; font-size: 1.1em;
-        }
+        h1 { color: #fff; text-align: center; margin-top: 0; margin-bottom: 10px; font-size: 2.2em; font-weight: 700; text-shadow: 0 0 10px var(--glow-color); }
+        .subtitle { text-align: center; color: var(--text-secondary-color); margin-bottom: 40px; font-size: 1.1em; }
 
-        /* --- 連結列表樣式 --- */
+        /* --- 連結列表 (與 V5 相同) --- */
         .link-list { list-style-type: none; padding: 0; margin: 0; }
-
         .link-item {
-            display: flex;
-            align-items: center;
-            padding: 18px 0;
-            border-bottom: 1px solid #e0e0e0;
-            gap: 15px;
+            display: flex; align-items: center; gap: 15px;
+            padding: 18px 20px;
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            position: relative;
+            opacity: 0; transform: translateY(15px);
+            animation: fadeInUp 0.5s forwards cubic-bezier(0.2, 0.8, 0.2, 1);
+            border: 1px solid transparent;
         }
-        .link-item:last-child { border-bottom: none; }
-        
+        .link-item:not(:last-child) { margin-bottom: 10px; }
+        .link-item:hover {
+            background: var(--hover-bg);
+            border-color: var(--border-color);
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+        }
         .link-item .icon {
-            color: #007bff; font-size: 1.4em;
-            width: 25px; text-align: center;
-            flex-shrink: 0;
-        }
-        
-        .link-content {
-            flex-grow: 1;
-        }
-        
-        .link-content .text {
-            font-size: 1.1em;
-            display: block;
-        }
-        
-        .warning-text {
-            font-size: 0.85em;
-            color: #888;
-            display: block;
-            margin-top: 4px;
-        }
-
-        .button-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-shrink: 0;
-        }
-
-        /* --- 按鈕樣式 --- */
-        .action-button {
-            background-color: #007bff;
-            color: white; border: none; padding: 10px 20px;
-            border-radius: 6px; cursor: pointer; font-size: 1em;
-            font-weight: bold; transition: all 0.3s ease;
-            white-space: nowrap;
-        }
-        .action-button:hover { background-color: #0056b3; transform: translateY(-2px); }
-        
-        .protected-button {
-            background-color: #dc3545;
-        }
-        .protected-button:hover { background-color: #c82333; }
-        
-        .copy-icon-button {
-            background: none; border: none; color: #888;
-            cursor: pointer; font-size: 1.3em; padding: 8px;
-            border-radius: 50%;
+            font-size: 1.6em; width: 30px; text-align: center; flex-shrink: 0;
+            color: var(--primary-color); text-shadow: 0 0 8px var(--primary-color);
             transition: all 0.3s ease;
         }
-        .copy-icon-button:hover { color: #333; background-color: #e9ecef; transform: scale(1.1); }
-
-        /* [新增] 複製圖示的佔位符 */
-        .copy-placeholder {
-            display: inline-block;
-            visibility: hidden; /* 隱藏但保留空間 */
-            pointer-events: none; /* 不可點擊 */
-            /* 複製 copy-icon-button 的尺寸相關屬性 */
-            font-size: 1.3em;
-            padding: 8px;
-            width: 1em; /* Font Awesome 圖示寬度約為 1em */
-            box-sizing: content-box; /* 確保 padding 不會計入 width */
+        .link-item:hover .icon {
+            color: #fff; text-shadow: 0 0 15px var(--secondary-color);
+            transform: scale(1.15) rotate(-5deg);
         }
+        .link-content { flex-grow: 1; min-width: 150px; }
+        .link-content .text { font-size: 1.1em; font-weight: bold; color: var(--text-color); }
+        .warning-text { font-size: 0.85em; color: var(--text-secondary-color); display: block; margin-top: 4px; }
+        .button-group { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         
-        /* --- 頁尾樣式 --- */
-        .footer {
-            text-align: center; margin-top: 40px; color: #888;
-            font-size: 0.9em; z-index: 1;
+        /* --- 按鈕樣式 (與 V5 相同) --- */
+        .action-button {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: #fff; border: none; padding: 10px 20px;
+            border-radius: 8px; cursor: pointer; font-size: 1em; font-weight: bold;
+            transition: all 0.3s ease; white-space: nowrap;
+            box-shadow: 0 0 15px rgba(14, 165, 233, 0.3), 0 0 15px rgba(217, 70, 239, 0.2);
         }
-        .footer p { margin: 5px 0; }
+        .action-button:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 0 25px rgba(14, 165, 233, 0.5), 0 0 25px rgba(217, 70, 239, 0.4);
+        }
+        .protected-button { background: linear-gradient(45deg, #ef4444, var(--danger-color)); box-shadow: 0 0 15px rgba(244, 63, 94, 0.4); }
+        .copy-icon-button{background:0 0;border:0;color:var(--text-secondary-color);cursor:pointer;font-size:1.4em;padding:8px;border-radius:50%;transition:all .3s ease}.copy-icon-button:hover{color:#fff;background-color:var(--hover-bg);transform:scale(1.1)}.copy-placeholder{display:inline-block;visibility:hidden;pointer-events:none;font-size:1.4em;padding:8px;width:1em;box-sizing:content-box}
+        .footer{text-align:center;margin-top:50px;color:#8892b0;font-size:.9em;z-index:1}.footer p{margin:5px 0}
         
-        /* --- 吉祥物樣式 --- */
+        /* --- [V6 恢復] 互動吉祥物樣式 --- */
         #mascot-container {
             position: fixed; bottom: 20px; right: 20px;
-            cursor: pointer; z-index: 1000;
+            cursor: pointer;
+            z-index: 1000; /* 確保在主內容之上 */
             transition: transform 0.2s ease-in-out;
         }
         #mascot-container img {
             width: 100px; height: auto;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
             -webkit-user-drag: none; user-select: none;
+            transition: filter 0.3s ease;
         }
-        #mascot-container:hover { transform: scale(1.1); }
-
-        /* --- 響應式設計 --- */
-        @media (max-width: 768px) {
-            .link-item { flex-wrap: wrap; }
-            .link-content { width: 100%; margin-bottom: 10px; }
-            .button-group { margin-left: auto; }
+        #mascot-container:hover {
+            transform: scale(1.1);
+            filter: drop-shadow(0 8px 20px rgba(217,70,239,.5)); /* 匹配主題色 */
         }
-        @media (max-width: 600px) {
-            body { padding: 20px 10px; }
-            .container { padding: 20px; }
-            h1 { font-size: 1.6em; }
-            #mascot-container { bottom: 15px; right: 15px; }
-            #mascot-container img { width: 75px; }
-        }
+        
+        /* 響應式設計 (與 V5 相同) */
+        @media(max-width:700px){.link-item{flex-wrap:wrap;justify-content:space-between}.link-content{width:calc(100% - 45px)}.button-group{width:100%;justify-content:flex-end;margin-top:10px}}@media(max-width:600px){body{padding:40px 10px}.container{padding:25px 20px}h1{font-size:1.8em}}
     </style>
 </head>
 <body>
     
+    <!-- [V6 整合] 多層次背景 -->
+    <canvas id="particle-canvas"></canvas>
     <div id="background-animations"></div>
 
     <div class="container">
+        <!-- 內容保持不變 -->
         <h1>新北市立雙溪高級中學</h1>
         <p class="subtitle">註冊組入口網站</p>
-        
         <ul class="link-list">
-            <li class="link-item">
-                <i class="icon fa-solid fa-id-card"></i>
-                <div class="link-content">
-                    <span class="text">在學證明書下載系統</span>
-                    <small class="warning-text">若無法開啟，請用無痕模式貼上連結進入</small>
-                </div>
-                <div class="button-group">
-                    <button class="action-button" onclick="window.open('https://script.google.com/macros/s/AKfycbzHgWXXEpTnyH-9umoamPSBOsH_KNb2rthfxlLf64vWJfgGk4MMDBGFlUTVD5kk_ZPp/exec', '_blank')">前往系統</button>
-                    <button class="copy-icon-button" title="複製連結" onclick="copyLink('https://script.google.com/macros/s/AKfycbzHgWXXEpTnyH-9umoamPSBOsH_KNb2rthfxlLf64vWJfgGk4MMDBGFlUTVD5kk_ZPp/exec')"><i class="fa-regular fa-copy"></i></button>
-                </div>
-            </li>
-            <li class="link-item">
-                <i class="icon fa-solid fa-table-list"></i>
-                <div class="link-content">
-                    <span class="text">班級名條及成績登記表下載系統</span>
-                    <small class="warning-text">若無法開啟，請用無痕模式貼上連結進入</small>
-                </div>
-                <div class="button-group">
-                    <button class="action-button" onclick="window.open('https://script.google.com/macros/s/AKfycbymfSNJ8mISVFM9P_JxhmD1MHFV1eQUm4u368AkwxJd0aU4RA5OES4a4PyNJD7wGkq8Yg/exec', '_blank')">前往系統</button>
-                    <button class="copy-icon-button" title="複製連結" onclick="copyLink('https://script.google.com/macros/s/AKfycbymfSNJ8mISVFM9P_JxhmD1MHFV1eQUm4u368AkwxJd0aU4RA5OES4a4PyNJD7wGkq8Yg/exec')"><i class="fa-regular fa-copy"></i></button>
-                </div>
-            </li>
-            <li class="link-item">
-                <i class="icon fa-solid fa-address-book"></i>
-                <div class="link-content">
-                    <span class="text">班級通訊錄 (含法定身分) 下載系統</span>
-                    <small class="warning-text">若無法開啟，請用無痕模式貼上連結進入</small>
-                </div>
-                <div class="button-group">
-                     <button class="action-button" onclick="window.open('https://script.google.com/macros/s/AKfycbyGRJd5yMoNSRm4bmnSmAySWMtif8s7IYERyizp_dyw2H7PAHKVqiRw_5DXOyG5ryNb/exec', '_blank')">前往系統</button>
-                     <button class="copy-icon-button" title="複製連結" onclick="copyLink('https://script.google.com/macros/s/AKfycbyGRJd5yMoNSRm4bmnSmAySWMtif8s7IYERyizp_dyw2H7PAHKVqiRw_5DXOyG5ryNb/exec')"><i class="fa-regular fa-copy"></i></button>
-                </div>
-            </li>
-            <!-- [修改] 此處結構已調整，以達成對齊 -->
-            <li class="link-item">
-                <i class="icon fa-solid fa-users"></i>
-                <div class="link-content">
-                    <span class="text">全校通訊錄 (含法定身分) 下載</span>
-                </div>
-                <div class="button-group">
-                    <button class="action-button protected-button" onclick="promptForPassword()">
-                        <i class="fa-solid fa-lock" style="margin-right: 5px;"></i>點此下載
-                    </button>
-                    <span class="copy-placeholder"></span>
-                </div>
-            </li>
-            <li class="link-item">
-                <i class="icon fa-solid fa-magnifying-glass"></i>
-                <div class="link-content">
-                    <span class="text">個人學號查詢系統</span>
-                    <small class="warning-text">若無法開啟，請用無痕模式貼上連結進入</small>
-                </div>
-                <div class="button-group">
-                    <button class="action-button" onclick="window.open('https://script.google.com/macros/s/AKfycbyng5zBVbYfS2OjvMoJY558q91Cipit6H5FT0Mo34791UhHutp2OUu26h7weSIqu7CD/exec', '_blank')">前往系統</button>
-                    <button class="copy-icon-button" title="複製連結" onclick="copyLink('https://script.google.com/macros/s/AKfycbyng5zBVbYfS2OjvMoJY558q91Cipit6H5FT0Mo34791UhHutp2OUu26h7weSIqu7CD/exec')"><i class="fa-regular fa-copy"></i></button>
-                </div>
-            </li>
-            <li class="link-item">
-                <i class="icon fa-solid fa-user-check"></i>
-                <div class="link-content">
-                    <span class="text">個人法定身分查詢系統</span>
-                    <small class="warning-text">若無法開啟，請用無痕模式貼上連結進入</small>
-                </div>
-                <div class="button-group">
-                    <button class="action-button" onclick="window.open('https://script.google.com/macros/s/AKfycbzV1WiVkADae9r8IxR7IvgXBO1bYwHyNVAycmJYiIvCA70RGRAdoYGuGkjXUZvwkDacIA/exec', '_blank')">前往系統</button>
-                    <button class="copy-icon-button" title="複製連結" onclick="copyLink('https://script.google.com/macros/s/AKfycbzV1WiVkADae9r8IxR7IvgXBO1bYwHyNVAycmJYiIvCA70RGRAdoYGuGkjXUZvwkDacIA/exec')"><i class="fa-regular fa-copy"></i></button>
-                </div>
-            </li>
+             <li class="link-item" style="animation-delay: 0.7s;"><i class="icon fa-solid fa-id-card"></i><div class="link-content"><span class="text">在學證明書下載系統</span><small class="warning-text">若無法開啟，請用無痕模式貼上連結進入</small></div><div class="button-group"><button class="action-button" onclick="window.open('https://script.google.com/macros/s/AKfycbzHgWXXEpTnyH-9umoamPSBOsH_KNb2rthfxlLf64vWJfgGk4MMDBGFlUTVD5kk_ZPp/exec', '_blank')">前往系統</button><button class="copy-icon-button" title="複製連結" onclick="copyLink('https://script.google.com/macros/s/AKfycbzHgWXXEpTnyH-9umoamPSBOsH_KNb2rthfxlLf64vWJfgGk4MMDBGFlUTVD5kk_ZPp/exec')"><i class="fa-regular fa-copy"></i></button></div></li>
+             <li class="link-item" style="animation-delay: 0.78s;"><i class="icon fa-solid fa-table-list"></i><div class="link-content"><span class="text">班級名條及成績登記表下載系統</span><small class="warning-text">若無法開啟，請用無痕模式貼上連結進入</small></div><div class="button-group"><button class="action-button" onclick="window.open('https://script.google.com/macros/s/AKfycbymfSNJ8mISVFM9P_JxhmD1MHFV1eQUm4u368AkwxJd0aU4RA5OES4a4PyNJD7wGkq8Yg/exec', '_blank')">前往系統</button><button class="copy-icon-button" title="複製連結" onclick="copyLink('https://script.google.com/macros/s/AKfycbymfSNJ8mISVFM9P_JxhmD1MHFV1eQUm4u368AkwxJd0aU4RA5OES4a4PyNJD7wGkq8Yg/exec')"><i class="fa-regular fa-copy"></i></button></div></li>
+             <li class="link-item" style="animation-delay: 0.86s;"><i class="icon fa-solid fa-address-book"></i><div class="link-content"><span class="text">班級通訊錄 (含法定身分) 下載系統</span><small class="warning-text">若無法開啟，請用無痕模式貼上連結進入</small></div><div class="button-group"><button class="action-button" onclick="window.open('https://script.google.com/macros/s/AKfycbyGRJd5yMoNSRm4bmnSmAySWMtif8s7IYERyizp_dyw2H7PAHKVqiRw_5DXOyG5ryNb/exec', '_blank')">前往系統</button><button class="copy-icon-button" title="複製連結" onclick="copyLink('https://script.google.com/macros/s/AKfycbyGRJd5yMoNSRm4bmnSmAySWMtif8s7IYERyizp_dyw2H7PAHKVqiRw_5DXOyG5ryNb/exec')"><i class="fa-regular fa-copy"></i></button></div></li>
+             <li class="link-item" style="animation-delay: 0.94s;"><i class="icon fa-solid fa-users"></i><div class="link-content"><span class="text">全校通訊錄 (含法定身分) 下載</span></div><div class="button-group"><button class="action-button protected-button" onclick="promptForPassword()"><i class="fa-solid fa-lock" style="margin-right:5px"></i>點此下載</button><span class="copy-placeholder"></span></div></li>
+             <li class="link-item" style="animation-delay: 1.02s;"><i class="icon fa-solid fa-magnifying-glass"></i><div class="link-content"><span class="text">個人學號查詢系統</span><small class="warning-text">若無法開啟，請用無痕模式貼上連結進入</small></div><div class="button-group"><button class="action-button" onclick="window.open('https://script.google.com/macros/s/AKfycbyng5zBVbYfS2OjvMoJY558q91Cipit6H5FT0Mo34791UhHutp2OUu26h7weSIqu7CD/exec', '_blank')">前往系統</button><button class="copy-icon-button" title="複製連結" onclick="copyLink('https://script.google.com/macros/s/AKfycbyng5zBVbYfS2OjvMoJY558q91Cipit6H5FT0Mo34791UhHutp2OUu26h7weSIqu7CD/exec')"><i class="fa-regular fa-copy"></i></button></div></li>
+             <li class="link-item" style="animation-delay: 1.1s;"><i class="icon fa-solid fa-user-check"></i><div class="link-content"><span class="text">個人法定身分查詢系統</span><small class="warning-text">若無法開啟，請用無痕模式貼上連結進入</small></div><div class="button-group"><button class="action-button" onclick="window.open('https://script.google.com/macros/s/AKfycbzV1WiVkADae9r8IxR7IvgXBO1bYwHyNVAycmJYiIvCA70RGRAdoYGuGkjXUZvwkDacIA/exec', '_blank')">前往系統</button><button class="copy-icon-button" title="複製連結" onclick="copyLink('https://script.google.com/macros/s/AKfycbzV1WiVkADae9r8IxR7IvgXBO1bYwHyNVAycmJYiIvCA70RGRAdoYGuGkjXUZvwkDacIA/exec')"><i class="fa-regular fa-copy"></i></button></div></li>
         </ul>
     </div>
     
@@ -265,24 +195,46 @@
         <p>Copyright © Liyuchiutiger Gongminshen</p>
     </footer>
 
-    <!-- 吉祥物 -->
+    <!-- [V6 恢復] 互動吉祥物 -->
     <div id="mascot-container">
         <img src="image/LiyuChillGuy.svg" alt="吉祥物 LiyuChillGuy">
     </div>
 
-    <!-- 引入粒子效果庫 -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 
     <script>
+        // [V6 整合] 所有 JS 功能
         document.addEventListener('DOMContentLoaded', function() {
+            // 粒子背景初始化
+            initParticles();
+            animateParticles();
+            
+            // [恢復] 漂浮吉祥物初始化
             createFloatingMascots();
+            
+            // [恢復] 互動吉祥物事件監聽
+            initMascotInteraction();
         });
 
+        /* --- 互動式粒子背景 JS (與 V5 相同) --- */
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        let particlesArray;
+        const mouse = { x: null, y: null, radius: 150 };
+        window.addEventListener('mousemove', e => { mouse.x = e.x; mouse.y = e.y; });
+        class Particle { constructor(x,y,dX,dY,s,c){this.x=x;this.y=y;this.directionX=dX;this.directionY=dY;this.size=s;this.color=c} draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2,!1);ctx.fillStyle=this.color;ctx.fill()} update(){if(this.x>canvas.width||this.x<0)this.directionX=-this.directionX;if(this.y>canvas.height||this.y<0)this.directionY=-this.directionY;this.x+=this.directionX;this.y+=this.directionY;this.draw()}}
+        function initParticles() { particlesArray = []; let n = (canvas.height * canvas.width) / 9e3; for (let i = 0; i < n; i++) { let s = 1 + 2 * Math.random(), x = s * 2 + Math.random() * (innerWidth - 4 * s), y = s * 2 + Math.random() * (innerHeight - 4 * s), dX = .4 * Math.random() - .2, dY = .4 * Math.random() - .2; particlesArray.push(new Particle(x, y, dX, dY, s, "rgba(14, 165, 233, 0.6)")) } }
+        function connect() { let o = 1; for (let t = 0; t < particlesArray.length; t++) for (let e = t; e < particlesArray.length; e++) { let i = (particlesArray[t].x - particlesArray[e].x) * (particlesArray[t].x - particlesArray[e].x) + (particlesArray[t].y - particlesArray[e].y) * (particlesArray[t].y - particlesArray[e].y); i < canvas.width / 7 * (canvas.height / 7) && (o = 1 - i / 2e4, ctx.strokeStyle = `rgba(14, 165, 233, ${o})`, ctx.lineWidth = 1, ctx.beginPath(), ctx.moveTo(particlesArray[t].x, particlesArray[t].y), ctx.lineTo(particlesArray[e].x, particlesArray[e].y), ctx.stroke()) } }
+        function animateParticles() { requestAnimationFrame(animateParticles); ctx.clearRect(0, 0, innerWidth, innerHeight); for (let i = 0; i < particlesArray.length; i++) particlesArray[i].update(); connect(); }
+        window.addEventListener('resize', () => { canvas.width = innerWidth; canvas.height = innerHeight; mouse.radius = 150; initParticles(); });
+
+        /* --- [V6 恢復] 漂浮吉祥物 JS --- */
         function createFloatingMascots() {
             const container = document.getElementById('background-animations');
             if (!container) return;
-            const mascotCount = 12;
-            const fragment = document.createDocumentFragment();
+            const mascotCount = 12, fragment = document.createDocumentFragment();
             for (let i = 0; i < mascotCount; i++) {
                 const mascot = document.createElement('img');
                 mascot.src = 'image/LiyuChillGuy.svg';
@@ -290,7 +242,6 @@
                 mascot.style.left = `${Math.random() * 100}vw`;
                 mascot.style.top = `${Math.random() * 100}vh`;
                 mascot.style.transform = `scale(${Math.random() * 0.4 + 0.3})`;
-                mascot.style.opacity = Math.random() * 0.08 + 0.04;
                 const duration = Math.random() * 20 + 20;
                 const delay = Math.random() * -20;
                 mascot.style.animation = `float ${duration}s ${delay}s infinite ease-in-out`;
@@ -299,38 +250,19 @@
             container.appendChild(fragment);
         }
 
-        async function copyLink(url) {
-            try {
-                await navigator.clipboard.writeText(url);
-                alert('連結已成功複製！\n請開啟無痕(私密)視窗並貼上連結進入。');
-            } catch (err) {
-                console.error('無法複製連結: ', err);
-                alert('複製連結失敗，您的瀏覽器可能不支援此功能，請手動複製。');
-            }
-        }
-
-        function promptForPassword() {
-            const password = prompt("此連結需要密碼才能存取，請輸入密碼：");
-            if (password === null) { return; }
-            if (password.toLowerCase() === 'sxhs') {
-                alert("密碼正確，即將開啟檔案連結。");
-                window.open('https://drive.google.com/drive/folders/1SQpxXX3Wz1jVFRgikj0aljp9ZFBpuBL8?usp=sharing', '_blank');
-            } else {
-                alert("密碼錯誤！請重新嘗試。");
-            }
-        }
-
-        const mascot = document.getElementById('mascot-container');
-        if (mascot) {
+        /* --- [V6 恢復] 互動吉祥物 JS --- */
+        function initMascotInteraction() {
+            const mascot = document.getElementById('mascot-container');
+            if (!mascot) return;
             let clickCount = 0, resetTimer = null;
             const maxClicks = 5, resetTime = 1500;
-            mascot.addEventListener('click', function (event) {
+            mascot.addEventListener('click', function(event) {
                 clearTimeout(resetTimer);
                 clickCount++;
                 const scale = 1 + (clickCount * 0.2);
                 mascot.style.transform = `scale(${scale})`;
                 if (clickCount >= maxClicks) {
-                    playBigExplosion(event);
+                    playBigExplosion(); // No event passed
                     clickCount = 0;
                     setTimeout(() => { mascot.style.transform = 'scale(1)'; }, 100);
                 } else {
@@ -342,26 +274,27 @@
                 }
             });
         }
-        
         function playSmallBurst(event) {
             const rect = event.currentTarget.getBoundingClientRect();
             const x = (event.clientX - rect.left) / rect.width;
             const y = (event.clientY - rect.top) / rect.height;
-            confetti({ particleCount: 50, spread: 70, origin: { x, y }, colors: ['#26ccff', '#a25afd', '#ff5e7e', '#88ff5a', '#fcff42'] });
+            confetti({ particleCount: 50, spread: 70, origin: { x, y }, colors: ['#0ea5e9', '#d946ef', '#f43f5e', '#88ff5a', '#fcff42'], zIndex: 1001 });
         }
-        
         function playBigExplosion() {
             const duration = 1 * 1000, animationEnd = Date.now() + duration;
             const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1001 };
             function randomInRange(min, max) { return Math.random() * (max - min) + min; }
             const interval = setInterval(function() {
                 const timeLeft = animationEnd - Date.now();
-                if (timeLeft <= 0) { return clearInterval(interval); }
+                if (timeLeft <= 0) return clearInterval(interval);
                 const particleCount = 50 * (timeLeft / duration);
                 confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.9), y: Math.random() - 0.2 } });
             }, 250);
         }
-    </script>
 
+        /* --- 頁面核心功能 JS --- */
+        async function copyLink(url) { try { await navigator.clipboard.writeText(url); alert('連結已成功複製！\n請開啟無痕(私密)視窗並貼上連結進入。'); } catch (err) { console.error('無法複製連結: ', err); alert('複製連結失敗，您的瀏覽器可能不支援此功能，請手動複製。'); } }
+        function promptForPassword() { const password = prompt("此連結需要密碼才能存取，請輸入密碼："); if (password === null) return; if (password.toLowerCase() === 'sxhs') { alert("密碼正確，即將開啟檔案連結。"); window.open('https://drive.google.com/drive/folders/1SQpxXX3Wz1jVFRgikj0aljp9ZFBpuBL8?usp=sharing', '_blank'); } else { alert("密碼錯誤！請重新嘗試。"); } }
+    </script>
 </body>
 </html>

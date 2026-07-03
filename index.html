@@ -148,12 +148,17 @@
         .copy-icon-button{background:0 0;border:0;color:var(--text-secondary-color);cursor:pointer;font-size:1.4em;padding:8px;border-radius:50%;transition:all .3s ease}.copy-icon-button:hover{color:#fff;background-color:var(--hover-bg);transform:scale(1.1)}.copy-placeholder{display:inline-block;visibility:hidden;pointer-events:none;font-size:1.4em;padding:8px;width:1em;box-sizing:content-box}
         .footer{text-align:center;margin-top:50px;color:#8892b0;font-size:.9em;z-index:1}.footer p{margin:5px 0}
         
-        /* --- [V6 恢復] 互動吉祥物樣式 --- */
+        /* --- [V6 恢復 & 調整拖曳] 互動吉祥物樣式 --- */
         #mascot-container {
             position: fixed; bottom: 20px; right: 20px;
-            cursor: pointer;
+            cursor: grab; /* 使用可抓取手勢 */
             z-index: 1000; /* 確保在主內容之上 */
             transition: transform 0.2s ease-in-out;
+            user-select: none;
+            touch-action: none; /* 停用預設觸控手勢，使拖曳更流暢 */
+        }
+        #mascot-container:active {
+            cursor: grabbing; /* 抓取中手勢 */
         }
         #mascot-container img {
             width: 100px; height: auto;
@@ -191,6 +196,9 @@
              <!-- 原有的「全校通訊錄 (含法定身分) 下載」已移除 -->
              <li class="link-item" style="animation-delay: 1.02s;"><i class="icon fa-solid fa-magnifying-glass"></i><div class="link-content"><span class="text">個人學號查詢系統</span><small class="warning-text">若無法開啟，請用無痕模式貼上連結進入</small></div><div class="button-group"><button class="action-button" onclick="window.open('https://script.google.com/macros/s/AKfycbwwcptr6kVwoCL05_Rj2NPsHp5v1C7j3OU5k9eFLumC5JXa0_GMz5-KTLL2M2XCl24/exec', '_blank')">前往系統</button><button class="copy-icon-button" title="複製連結" onclick="copyLink('https://script.google.com/macros/s/AKfycbwwcptr6kVwoCL05_Rj2NPsHp5v1C7j3OU5k9eFLumC5JXa0_GMz5-KTLL2M2XCl24/exec')"><i class="fa-regular fa-copy"></i></button></div></li>
              <li class="link-item" style="animation-delay: 1.1s;"><i class="icon fa-solid fa-user-check"></i><div class="link-content"><span class="text">個人法定身分查詢系統</span><small class="warning-text">若無法開啟，請用無痕模式貼上連結進入</small></div><div class="button-group"><button class="action-button" onclick="window.open('https://script.google.com/macros/s/AKfycbzMwlI2Xi4EEMUDl1SVIgJKYNxkoMq6VUv37J4M0mPnXiBO2b8BtohZ8JE0cPIbqSlc5A/exec', '_blank')">前往系統</button><button class="copy-icon-button" title="複製連結" onclick="copyLink('https://script.google.com/macros/s/AKfycbzMwlI2Xi4EEMUDl1SVIgJKYNxkoMq6VUv37J4M0mPnXiBO2b8BtohZ8JE0cPIbqSlc5A/exec')"><i class="fa-regular fa-copy"></i></button></div></li>
+             
+             <!-- [新增] 特殊生成績標準公告暨查詢系統 -->
+             <li class="link-item" style="animation-delay: 1.18s;"><i class="icon fa-solid fa-award"></i><div class="link-content"><span class="text">特殊生成績標準公告暨查詢系統</span><small class="warning-text">若無法開啟，請用無痕模式貼上連結進入</small></div><div class="button-group"><button class="action-button" onclick="window.open('https://script.google.com/a/macros/sxhs.ntpc.edu.tw/s/AKfycbyzc_bdR5YLdg7FPmFvBkmYJZF64MMqtQfFCwNj0TxD6Zdmyd6HRVjIZDaX6vVaVLG-/exec', '_blank')">前往系統</button><button class="copy-icon-button" title="複製連結" onclick="copyLink('https://script.google.com/a/macros/sxhs.ntpc.edu.tw/s/AKfycbyzc_bdR5YLdg7FPmFvBkmYJZF64MMqtQfFCwNj0TxD6Zdmyd6HRVjIZDaX6vVaVLG-/exec')"><i class="fa-regular fa-copy"></i></button></div></li>
         </ul>
     </div>
     
@@ -216,7 +224,7 @@
             // [恢復] 漂浮吉祥物初始化
             createFloatingMascots();
             
-            // [恢復] 互動吉祥物事件監聽
+            // [恢復 & 更新拖曳] 互動吉祥物事件監聽
             initMascotInteraction();
         });
 
@@ -254,19 +262,108 @@
             container.appendChild(fragment);
         }
 
-        /* --- [V6 恢復] 互動吉祥物 JS --- */
+        /* --- [V6 恢復 & 更新拖曳] 互動吉祥物 JS --- */
         function initMascotInteraction() {
             const mascot = document.getElementById('mascot-container');
             if (!mascot) return;
+
             let clickCount = 0, resetTimer = null;
             const maxClicks = 5, resetTime = 1500;
+            
+            let isDragging = false;
+            let startX, startY;
+            let initialLeft, initialTop;
+            let hasMoved = false; // 用以判斷此次操作是「拖曳」還是「單純點擊」
+
+            // 拖曳開始事件
+            function dragStart(e) {
+                const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+
+                isDragging = true;
+                hasMoved = false;
+
+                const rect = mascot.getBoundingClientRect();
+                initialLeft = rect.left;
+                initialTop = rect.top;
+
+                // 立即將相對位置轉為絕對 left / top，防止移動時跳格
+                mascot.style.bottom = 'auto';
+                mascot.style.right = 'auto';
+                mascot.style.left = `${initialLeft}px`;
+                mascot.style.top = `${initialTop}px`;
+
+                startX = clientX - initialLeft;
+                startY = clientY - initialTop;
+
+                // 避免滑鼠選取文字或拖曳預設行為
+                if (e.type === 'mousedown') {
+                    e.preventDefault();
+                }
+            }
+
+            // 拖曳進行事件
+            function dragMove(e) {
+                if (!isDragging) return;
+
+                // 手機拖曳時避免網頁跟著上下滾動
+                if (e.cancelable) {
+                    e.preventDefault();
+                }
+
+                const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+
+                const newLeft = clientX - startX;
+                const newTop = clientY - startY;
+
+                const rect = mascot.getBoundingClientRect();
+                const minX = 0;
+                const maxX = window.innerWidth - rect.width;
+                const minY = 0;
+                const maxY = window.innerHeight - rect.height;
+
+                // 限制在視窗內，不跑出外邊
+                const boundedLeft = Math.max(minX, Math.min(maxX, newLeft));
+                const boundedTop = Math.max(minY, Math.min(maxY, newTop));
+
+                mascot.style.left = `${boundedLeft}px`;
+                mascot.style.top = `${boundedTop}px`;
+
+                // 若位移大於 5 像素，即標記為「已移動（非點擊）」
+                if (Math.abs(newLeft - initialLeft) > 5 || Math.abs(newTop - initialTop) > 5) {
+                    hasMoved = true;
+                }
+            }
+
+            // 拖曳結束事件
+            function dragEnd() {
+                isDragging = false;
+            }
+
+            // 桌電滑鼠接聽器
+            mascot.addEventListener('mousedown', dragStart);
+            window.addEventListener('mousemove', dragMove);
+            window.addEventListener('mouseup', dragEnd);
+
+            // 手機觸控接聽器
+            mascot.addEventListener('touchstart', dragStart, { passive: true });
+            window.addEventListener('touchmove', dragMove, { passive: false });
+            window.addEventListener('touchend', dragEnd);
+
+            // 點擊事件接聽器
             mascot.addEventListener('click', function(event) {
+                // 如果剛剛有進行拖曳移動，直接返回，不觸發點擊爆炸特效
+                if (hasMoved) {
+                    return;
+                }
+
                 clearTimeout(resetTimer);
                 clickCount++;
                 const scale = 1 + (clickCount * 0.2);
                 mascot.style.transform = `scale(${scale})`;
                 if (clickCount >= maxClicks) {
-                    playBigExplosion(); // No event passed
+                    playBigExplosion(); 
                     clickCount = 0;
                     setTimeout(() => { mascot.style.transform = 'scale(1)'; }, 100);
                 } else {
@@ -278,12 +375,14 @@
                 }
             });
         }
+
         function playSmallBurst(event) {
-            const rect = event.currentTarget.getBoundingClientRect();
-            const x = (event.clientX - rect.left) / rect.width;
-            const y = (event.clientY - rect.top) / rect.height;
+            // 優化紙屑噴發中心：對齊視窗比例，確保拖曳後也從滑鼠點擊位置噴發
+            const x = event.clientX / window.innerWidth;
+            const y = event.clientY / window.innerHeight;
             confetti({ particleCount: 50, spread: 70, origin: { x, y }, colors: ['#0ea5e9', '#d946ef', '#f43f5e', '#88ff5a', '#fcff42'], zIndex: 1001 });
         }
+
         function playBigExplosion() {
             const duration = 1 * 1000, animationEnd = Date.now() + duration;
             const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1001 };

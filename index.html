@@ -215,20 +215,20 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 
     <script>
-        // [V6 整合] 所有 JS 功能
+        // 效能優化版 JS 功能
         document.addEventListener('DOMContentLoaded', function() {
             // 粒子背景初始化
             initParticles();
             animateParticles();
             
-            // [恢復] 漂浮吉祥物初始化
+            // 漂浮吉祥物初始化
             createFloatingMascots();
             
-            // [恢復 & 更新拖曳] 互動吉祥物事件監聽
+            // 互動吉祥物事件監聽
             initMascotInteraction();
         });
 
-        /* --- 互動式粒子背景 JS (與 V5 相同) --- */
+        /* --- 互動式粒子背景 JS --- */
         const canvas = document.getElementById('particle-canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = window.innerWidth;
@@ -236,24 +236,121 @@
         let particlesArray;
         const mouse = { x: null, y: null, radius: 150 };
         window.addEventListener('mousemove', e => { mouse.x = e.x; mouse.y = e.y; });
-        class Particle { constructor(x,y,dX,dY,s,c){this.x=x;this.y=y;this.directionX=dX;this.directionY=dY;this.size=s;this.color=c} draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2,!1);ctx.fillStyle=this.color;ctx.fill()} update(){if(this.x>canvas.width||this.x<0)this.directionX=-this.directionX;if(this.y>canvas.height||this.y<0)this.directionY=-this.directionY;this.x+=this.directionX;this.y+=this.directionY;this.draw()}}
-        function initParticles() { particlesArray = []; let n = (canvas.height * canvas.width) / 9e3; for (let i = 0; i < n; i++) { let s = 1 + 2 * Math.random(), x = s * 2 + Math.random() * (innerWidth - 4 * s), y = s * 2 + Math.random() * (innerHeight - 4 * s), dX = .4 * Math.random() - .2, dY = .4 * Math.random() - .2; particlesArray.push(new Particle(x, y, dX, dY, s, "rgba(14, 165, 233, 0.6)")) } }
-        function connect() { let o = 1; for (let t = 0; t < particlesArray.length; t++) for (let e = t; e < particlesArray.length; e++) { let i = (particlesArray[t].x - particlesArray[e].x) * (particlesArray[t].x - particlesArray[e].x) + (particlesArray[t].y - particlesArray[e].y) * (particlesArray[t].y - particlesArray[e].y); i < canvas.width / 7 * (canvas.height / 7) && (o = 1 - i / 2e4, ctx.strokeStyle = `rgba(14, 165, 233, ${o})`, ctx.lineWidth = 1, ctx.beginPath(), ctx.moveTo(particlesArray[t].x, particlesArray[t].y), ctx.lineTo(particlesArray[e].x, particlesArray[e].y), ctx.stroke()) } }
-        function animateParticles() { requestAnimationFrame(animateParticles); ctx.clearRect(0, 0, innerWidth, innerHeight); for (let i = 0; i < particlesArray.length; i++) particlesArray[i].update(); connect(); }
-        window.addEventListener('resize', () => { canvas.width = innerWidth; canvas.height = innerHeight; mouse.radius = 150; initParticles(); });
+        
+        class Particle {
+            constructor(x, y, dX, dY, s, c) {
+                this.x = x;
+                this.y = y;
+                this.directionX = dX;
+                this.directionY = dY;
+                this.size = s;
+                this.color = c;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+            update() {
+                if (this.x > canvas.width || this.x < 0) this.directionX = -this.directionX;
+                if (this.y > canvas.height || this.y < 0) this.directionY = -this.directionY;
+                this.x += this.directionX;
+                this.y += this.directionY;
+                this.draw();
+            }
+        }
 
-        /* --- [V6 恢復] 漂浮吉祥物 JS --- */
+        // 初始化粒子背景，限制粒子最大數量以確保效能
+        function initParticles() {
+            particlesArray = [];
+            const isMobile = window.innerWidth < 768;
+            const maxParticles = isMobile ? 30 : 80; // 行動裝置上限 30，桌面版上限 80
+            const calculatedCount = Math.floor((canvas.height * canvas.width) / 18000);
+            const n = Math.min(maxParticles, Math.max(20, calculatedCount));
+
+            for (let i = 0; i < n; i++) {
+                let s = 1 + 2 * Math.random();
+                let x = s * 2 + Math.random() * (canvas.width - 4 * s);
+                let y = s * 2 + Math.random() * (canvas.height - 4 * s);
+                let dX = 0.4 * Math.random() - 0.2;
+                let dY = 0.4 * Math.random() - 0.2;
+                particlesArray.push(new Particle(x, y, dX, dY, s, "rgba(14, 165, 233, 0.6)"));
+            }
+        }
+
+        // 連接相近粒子，優化連線演算法並過濾不可見連線以提升效能
+        function connect() {
+            const maxDistanceSq = 14400; // 最大連線距離 120px 的平方 (120 * 120)
+            const len = particlesArray.length;
+            
+            for (let t = 0; t < len; t++) {
+                const pA = particlesArray[t];
+                for (let e = t + 1; e < len; e++) {
+                    const pB = particlesArray[e];
+                    const dx = pA.x - pB.x;
+                    const dy = pA.y - pB.y;
+                    const distSq = dx * dx + dy * dy;
+
+                    // 只有在距離小於 120px 時才進行連線繪製，避免多餘的 Canvas 渲染
+                    if (distSq < maxDistanceSq) {
+                        const o = 1 - distSq / maxDistanceSq;
+                        ctx.strokeStyle = `rgba(14, 165, 233, ${o})`;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(pA.x, pA.y);
+                        ctx.lineTo(pB.x, pB.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animateParticles() {
+            requestAnimationFrame(animateParticles);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const len = particlesArray.length;
+            for (let i = 0; i < len; i++) {
+                particlesArray[i].update();
+            }
+            connect();
+        }
+
+        // 簡易防抖函式 (Debounce)
+        function debounce(func, delay) {
+            let timer;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => func.apply(this, args), delay);
+            };
+        }
+
+        // 視窗縮放事件防抖處理，避免連續重新建立粒子造成卡頓
+        window.addEventListener('resize', debounce(() => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            mouse.radius = 150;
+            initParticles();
+        }, 150));
+
+        /* --- 漂浮吉祥物 JS --- */
         function createFloatingMascots() {
             const container = document.getElementById('background-animations');
             if (!container) return;
-            const mascotCount = 12, fragment = document.createDocumentFragment();
+            
+            container.innerHTML = ''; // 清除現有元素
+
+            const isMobile = window.innerWidth < 768;
+            const mascotCount = isMobile ? 3 : 8; // 行動裝置減載為 3 個，桌面版 8 個 (原 12 個)
+            const fragment = document.createDocumentFragment();
+
             for (let i = 0; i < mascotCount; i++) {
                 const mascot = document.createElement('img');
                 mascot.src = 'image/LiyuChillGuy.svg';
                 mascot.className = 'floating-mascot';
                 mascot.style.left = `${Math.random() * 100}vw`;
                 mascot.style.top = `${Math.random() * 100}vh`;
-                mascot.style.transform = `scale(${Math.random() * 0.4 + 0.3})`;
+                mascot.style.transform = `scale(${Math.random() * 0.3 + 0.25})`; // 稍微調整比例
                 const duration = Math.random() * 20 + 20;
                 const delay = Math.random() * -20;
                 mascot.style.animation = `float ${duration}s ${delay}s infinite ease-in-out`;
@@ -262,7 +359,7 @@
             container.appendChild(fragment);
         }
 
-        /* --- [V6 恢復 & 更新拖曳] 互動吉祥物 JS --- */
+        /* --- 互動吉祥物 JS --- */
         function initMascotInteraction() {
             const mascot = document.getElementById('mascot-container');
             if (!mascot) return;
@@ -273,7 +370,7 @@
             let isDragging = false;
             let startX, startY;
             let initialLeft, initialTop;
-            let hasMoved = false; // 用以判斷此次操作是「拖曳」還是「單純點擊」
+            let hasMoved = false; // 判斷是否為拖曳
 
             // 拖曳開始事件
             function dragStart(e) {
@@ -287,7 +384,7 @@
                 initialLeft = rect.left;
                 initialTop = rect.top;
 
-                // 立即將相對位置轉為絕對 left / top，防止移動時跳格
+                // 轉為絕對位置以防止跳格
                 mascot.style.bottom = 'auto';
                 mascot.style.right = 'auto';
                 mascot.style.left = `${initialLeft}px`;
@@ -296,9 +393,14 @@
                 startX = clientX - initialLeft;
                 startY = clientY - initialTop;
 
-                // 避免滑鼠選取文字或拖曳預設行為
+                // 動態綁定移動與結束事件，避免閒置時的監聽開銷
                 if (e.type === 'mousedown') {
                     e.preventDefault();
+                    window.addEventListener('mousemove', dragMove);
+                    window.addEventListener('mouseup', dragEnd);
+                } else if (e.type === 'touchstart') {
+                    window.addEventListener('touchmove', dragMove, { passive: false });
+                    window.addEventListener('touchend', dragEnd);
                 }
             }
 
@@ -306,9 +408,8 @@
             function dragMove(e) {
                 if (!isDragging) return;
 
-                // 手機拖曳時避免網頁跟著上下滾動
                 if (e.cancelable) {
-                    e.preventDefault();
+                    e.preventDefault(); // 避免手機網頁滾動
                 }
 
                 const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
@@ -323,15 +424,15 @@
                 const minY = 0;
                 const maxY = window.innerHeight - rect.height;
 
-                // 限制在視窗內，不跑出外邊
+                // 限制在視窗可見區域內
                 const boundedLeft = Math.max(minX, Math.min(maxX, newLeft));
                 const boundedTop = Math.max(minY, Math.min(maxY, newTop));
 
                 mascot.style.left = `${boundedLeft}px`;
                 mascot.style.top = `${boundedTop}px`;
 
-                // 若位移大於 5 像素，即標記為「已移動（非點擊）」
-                if (Math.abs(newLeft - initialLeft) > 5 || Math.abs(newTop - initialTop) > 5) {
+                // 若位移大於 5 像素，標記為已移動
+                if (Math.abs(boundedLeft - initialLeft) > 5 || Math.abs(boundedTop - initialTop) > 5) {
                     hasMoved = true;
                 }
             }
@@ -339,21 +440,20 @@
             // 拖曳結束事件
             function dragEnd() {
                 isDragging = false;
+                // 解除事件監聽器，釋放效能
+                window.removeEventListener('mousemove', dragMove);
+                window.removeEventListener('mouseup', dragEnd);
+                window.removeEventListener('touchmove', dragMove);
+                window.removeEventListener('touchend', dragEnd);
             }
 
-            // 桌電滑鼠接聽器
+            // 註冊開始事件
             mascot.addEventListener('mousedown', dragStart);
-            window.addEventListener('mousemove', dragMove);
-            window.addEventListener('mouseup', dragEnd);
-
-            // 手機觸控接聽器
             mascot.addEventListener('touchstart', dragStart, { passive: true });
-            window.addEventListener('touchmove', dragMove, { passive: false });
-            window.addEventListener('touchend', dragEnd);
 
             // 點擊事件接聽器
             mascot.addEventListener('click', function(event) {
-                // 如果剛剛有進行拖曳移動，直接返回，不觸發點擊爆炸特效
+                // 若進行過拖曳，不觸發點擊特效
                 if (hasMoved) {
                     return;
                 }
@@ -377,7 +477,6 @@
         }
 
         function playSmallBurst(event) {
-            // 優化紙屑噴發中心：對齊視窗比例，確保拖曳後也從滑鼠點擊位置噴發
             const x = event.clientX / window.innerWidth;
             const y = event.clientY / window.innerHeight;
             confetti({ particleCount: 50, spread: 70, origin: { x, y }, colors: ['#0ea5e9', '#d946ef', '#f43f5e', '#88ff5a', '#fcff42'], zIndex: 1001 });
@@ -395,8 +494,16 @@
             }, 250);
         }
 
-        /* --- 頁面核心功能 JS --- */
-        async function copyLink(url) { try { await navigator.clipboard.writeText(url); alert('連結已成功複製！\n請開啟無痕(私密)視窗並貼上連結進入。'); } catch (err) { console.error('無法複製連結: ', err); alert('複製連結失敗，您的瀏覽器可能不支援此功能，請手動複製。'); } }
+        /* --- 頁面核心功能 --- */
+        async function copyLink(url) {
+            try {
+                await navigator.clipboard.writeText(url);
+                alert('連結已成功複製！\n請開啟無痕(私密)視窗並貼上連結進入。');
+            } catch (err) {
+                console.error('無法複製連結: ', err);
+                alert('複製連結失敗，您的瀏覽器可能不支援此功能，請手動複製。');
+            }
+        }
         
     </script>
 </body>
